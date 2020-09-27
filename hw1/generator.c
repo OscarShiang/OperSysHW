@@ -8,22 +8,58 @@
 #include <time.h>
 #include <unistd.h>
 
-// #define BASE ((size_t) 1 << 28)
-#define BASE 10
-#define WORKER_NUM 3
+#define BASE ((size_t) 1 << 28)
+// #define BASE 10
+#define WORKER_NUM 1000
 
 static volatile _Atomic size_t cnt;
 static size_t num = BASE;
 static pthread_mutex_t mutex;
 FILE *fout;
 
+void randombytes(uint8_t *x, size_t how_much)
+{
+    ssize_t i;
+    static int fd = -1;
+
+    ssize_t xlen = (ssize_t) how_much;
+    assert(xlen >= 0);
+    if (fd == -1) {
+        for (;;) {
+            fd = open("/dev/urandom", O_RDONLY);
+            if (fd != -1)
+                break;
+            sleep(1);
+        }
+    }
+
+    while (xlen > 0) {
+        if (xlen < 1048576)
+            i = xlen;
+        else
+            i = 1048576;
+
+        i = read(fd, x, (size_t) i);
+        if (i < 1) {
+            sleep(1);
+            continue;
+        }
+
+        x += i;
+        xlen -= i;
+    }
+}
+
 void *worker(void *arg)
 {
+    int32_t a;
     while (1) {
         /* output random number into the file */
-        // pthread_mutex_lock(&mutex);
-        fprintf(fout, "%d\n", rand());
-        // pthread_mutex_unlock(&mutex);
+        randombytes((uint8_t *) &a, sizeof(int32_t));
+
+        pthread_mutex_lock(&mutex);
+        fprintf(fout, "%d\n", a);
+        pthread_mutex_unlock(&mutex);
 
         size_t m = atomic_fetch_add(&cnt, 1);
         printf("generating test data... (%lu / %lu)\r", m, num);
@@ -37,8 +73,8 @@ static void print_usage()
     printf(
         "Usage: generator [options]\n"
         "Options:\n"
-        "   -n        size of the file\n"
-        "   -o        output name of the file\n");
+        "   -n     size of the file\n"
+        "   -o     output name of the file\n");
     exit(-1);
 }
 

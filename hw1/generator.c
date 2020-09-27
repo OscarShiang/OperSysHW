@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <locale.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -17,13 +18,12 @@ static size_t num = BASE;
 static pthread_mutex_t mutex;
 FILE *fout;
 
-void randombytes(uint8_t *x, size_t how_much)
+static void randombytes(uint8_t *x, size_t how_much)
 {
     ssize_t i;
     static int fd = -1;
 
     ssize_t xlen = (ssize_t) how_much;
-    assert(xlen >= 0);
     if (fd == -1) {
         for (;;) {
             fd = open("/dev/urandom", O_RDONLY);

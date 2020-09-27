@@ -1,0 +1,10 @@
+# source files
+*.o
+
+# efi
+sort
+generator
+
+# test data
+input.txt
+output.txt

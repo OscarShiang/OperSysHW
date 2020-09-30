@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #define CHUNK_SIZE 512
@@ -58,6 +59,7 @@ int main(int argc, char *argv[])
 
     char in[100] = "input.txt", out[100] = "output.txt";
 
+
     /* parsing the arguments */
     char opt;
     while ((opt = getopt(argc, argv, "i:o:")) != -1) {
@@ -84,6 +86,10 @@ int main(int argc, char *argv[])
 
     size_t data_cnt = 0;
 
+    /* measure the time of spliting */
+    struct timeval time_start, time_end;
+
+    gettimeofday(&time_start, NULL);
     while (fscanf(fin, "%d", &elements[idx]) != EOF) {
         idx++;
         if (idx >= CHUNK_SIZE) {
@@ -113,6 +119,9 @@ int main(int argc, char *argv[])
         }
         fclose(tmp);
     }
+    gettimeofday(&time_end, NULL);
+
+    printf("split time: %ld\n", time_end.tv_sec - time_start.tv_sec);
 
     /* merge the chunks into a single file */
     size_t *chunks = malloc(sizeof(size_t) * chunk_cnt);
@@ -126,6 +135,7 @@ int main(int argc, char *argv[])
 
     size_t out_cnt = 0;
 
+    gettimeofday(&time_start, NULL);
     while (chunk_cnt > 1) {
         size_t i;
         for (i = 0; i < chunk_cnt - 1; i += 2) {
@@ -183,10 +193,13 @@ int main(int argc, char *argv[])
         chunk_cnt = pending_idx;
         pending_idx = 0;
     }
+    rename(CHUNK_PATH "data0", out);
+
+    gettimeofday(&time_end, NULL);
+    printf("merge time: %ld\n", time_end.tv_sec - time_start.tv_sec);
 
     free(chunks);
 
-    rename(CHUNK_PATH"data0", out);
 
-        return 0;
+    return 0;
 }

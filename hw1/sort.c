@@ -11,8 +11,15 @@
 #include <unistd.h>
 
 #define CHUNK_SIZE 512
+#define MERGE_NUM 5
 #define FILENAME_SIZE 100
 #define CHUNK_PATH "./chunk/"
+
+typedef struct {
+    int value;
+    int ret;
+    FILE *fp;
+} merge_item;
 
 static void print_usage()
 {
@@ -29,27 +36,23 @@ static inline int cmp(const void *a, const void *b)
     return *(int32_t *) a - *(int32_t *) b;
 }
 
-/* return the index of the minimum value of the array */
-static int min_idx(int *arr, size_t len)
+static bool is_finish(merge_item items[], size_t len)
 {
-    int index = 0;
-    int value = arr[0];
-
+    bool finish = true;
     for (int i = 0; i < len; i++) {
-        if (arr[i] < value) {
-            value = arr[i];
-            index = i;
-        }
+        finish &= items[i].ret == EOF;
     }
-    return index;
+    return finish;
 }
 
-static bool is_finish(bool *arr, size_t len)
+static inline int cmp_mutiple(const void *a, const void *b)
 {
-    bool flag = true;
-    for (int i = 0; i < len; i++)
-        flag &= arr[i];
-    return flag;
+    if (((merge_item *) a)->ret == EOF)
+        return -1;
+    else if (((merge_item *) b)->ret == EOF)
+        return 1;
+    else
+        return ((merge_item *) a)->value - ((merge_item *) b)->value;
 }
 
 int main(int argc, char *argv[])
@@ -138,57 +141,46 @@ int main(int argc, char *argv[])
     gettimeofday(&time_start, NULL);
     while (chunk_cnt > 1) {
         size_t i;
-        for (i = 0; i < chunk_cnt - 1; i += 2) {
-            snprintf(chunk_file, FILENAME_SIZE, CHUNK_PATH "data%lu",
-                     chunks[i]);
-            FILE *fa = fopen(chunk_file, "r");
+        for (i = 0; i < chunk_cnt - 1; i += MERGE_NUM) {
+            merge_item items[MERGE_NUM];
 
-            snprintf(chunk_file, FILENAME_SIZE, CHUNK_PATH "data%lu",
-                     chunks[i + 1]);
-            FILE *fb = fopen(chunk_file, "r");
-
-            int a, b;
-            int ret_a = fscanf(fa, "%d", &a) != EOF;
-            int ret_b = fscanf(fb, "%d", &b) != EOF;
+            for (int j = 0; j < MERGE_NUM; j++) {
+                snprintf(chunk_file, FILENAME_SIZE, CHUNK_PATH "data%lu",
+                         chunks[i + j]);
+                items[j].fp = fopen(chunk_file, "r");
+                items[j].ret = fscanf(items[j].fp, "%d", &items[j].value);
+            }
 
             FILE *tmp = fopen("tmp", "w");
 
             /* merge the files */
-            while (ret_a || ret_b) {
-                if (!ret_a) {
-                    fprintf(tmp, "%d\n", b);
-                    ret_b = fscanf(fb, "%d", &b) != EOF;
-                } else if (!ret_b) {
-                    fprintf(tmp, "%d\n", a);
-                    ret_a = fscanf(fa, "%d", &a) != EOF;
-                } else if (a < b) {
-                    fprintf(tmp, "%d\n", a);
-                    ret_a = fscanf(fa, "%d", &a) != EOF;
-                } else {
-                    fprintf(tmp, "%d\n", b);
-                    ret_b = fscanf(fb, "%d", &b) != EOF;
-                }
+            while (!is_finish(items, MERGE_NUM)) {
+                qsort(items, MERGE_NUM, sizeof(merge_item), cmp_mutiple);
+                fprintf(tmp, "%d\n", items[0].value);
+                items[0].ret = fscanf(items[0].fp, "%d", &items[0].value);
             }
 
-            fclose(fa);
-            fclose(fb);
+            for (int j = 0; j < MERGE_NUM; j++) {
+                fclose(items[j].fp);
+
+                /* remove the original files */
+                snprintf(chunk_file, FILENAME_SIZE, CHUNK_PATH "data%lu",
+                         chunks[i + j]);
+                remove(chunk_file);
+            }
             fclose(tmp);
 
-            /* remove the original files */
-            remove(chunk_file);
+            /* rename the merged file */
             snprintf(chunk_file, FILENAME_SIZE, CHUNK_PATH "data%lu",
                      chunks[i]);
-            remove(chunk_file);
-
-            /* rename the merged file */
             rename("tmp", chunk_file);
 
             chunks[pending_idx++] = chunks[i];
         }
 
         /* save the redundant file */
-        if (i < chunk_cnt)
-            chunks[pending_idx++] = chunks[i];
+        while (i < chunk_cnt)
+            chunks[pending_idx++] = chunks[i++];
 
         chunk_cnt = pending_idx;
         pending_idx = 0;

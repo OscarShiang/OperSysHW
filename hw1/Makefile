@@ -1,4 +1,5 @@
-CFLAG = -std=c11 -pthread -g
+CC = gcc
+CFLAG = -std=c11 -g -pthread
 
 all: sort generator
 
@@ -12,9 +13,9 @@ generator: generator.o
 	$(CC) -c $^ $(CFLAG)
 
 test: sort
+	@mkdir -p chunk
 	@$(RM) chunk/*
 	./sort -i input.txt -o output.txt
-	@ls -l chunk | wc -l
 
 format:
 	@clang-format -i *.[ch]

@@ -1,18 +1,14 @@
-#include <fcntl.h>
-#include <pthread.h>
-#include <stdatomic.h>
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #define CHUNK_SIZE (1 << 19)
-// #define CHUNK_SIZE 512
-#define MERGE_NUM 2
+#define MERGE_NUM 5
 #define FILENAME_SIZE 100
 #define CHUNK_PATH "./chunk/"
 
@@ -99,9 +95,9 @@ int main(int argc, char *argv[])
     size_t data_cnt = 0;
 
     /* measure the time of spliting */
-    struct timeval time_start, time_end;
+    clock_t time_start, time_end;
 
-    gettimeofday(&time_start, NULL);
+    time_start = clock();
     while (fscanf(fin, "%d", &elements[idx]) != EOF) {
         idx++;
         if (idx >= CHUNK_SIZE) {
@@ -131,9 +127,10 @@ int main(int argc, char *argv[])
         }
         fclose(tmp);
     }
-    gettimeofday(&time_end, NULL);
+    time_end = clock();
 
-    printf("split time: %ld\n", time_end.tv_sec - time_start.tv_sec);
+    printf("split time: %lf\n",
+           ((double) time_end - time_start) / CLOCKS_PER_SEC);
 
     /* merge the chunks into a single file */
     size_t *chunks = malloc(sizeof(size_t) * chunk_cnt);
@@ -146,10 +143,10 @@ int main(int argc, char *argv[])
 
     size_t out_cnt = 0;
 
-    gettimeofday(&time_start, NULL);
+    time_start = clock();
     while (chunk_cnt > 1) {
         size_t i;
-        for (i = 0; i < min(chunk_cnt, (ssize_t)chunk_cnt - MERGE_NUM);
+        for (i = 0; i < min(chunk_cnt, (ssize_t) chunk_cnt - 1);
              i += MERGE_NUM) {
             merge_item items[MERGE_NUM];
             int sort_num = 0;
@@ -214,8 +211,10 @@ int main(int argc, char *argv[])
     }
     rename(CHUNK_PATH "data0", out);
 
-    gettimeofday(&time_end, NULL);
-    printf("merge time: %ld\n", time_end.tv_sec - time_start.tv_sec);
+    time_end = clock();
+
+    printf("split time: %lf\n",
+           ((double) time_end - time_start) / CLOCKS_PER_SEC);
 
     free(chunks);
 

@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <getopt.h>
 #include <locale.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -11,7 +12,7 @@
 
 #define BASE ((size_t) 1 << 28)
 // #define BASE 10
-#define WORKER_NUM 1000
+#define WORKER_NUM 10
 
 static volatile _Atomic size_t cnt;
 static size_t num = BASE;

@@ -164,16 +164,29 @@ int main(int argc, char *argv[])
 
             FILE *tmp = fopen("tmp", "w");
 
+            char buf[4096];
+            char *bptr = buf;
+            int buf_cnt = 0;
+
             /* merge the files */
             while (!is_finish(items, sort_num)) {
                 size_t idx = find_index(items, sort_num);
-                fprintf(tmp, "%d\n", items[idx].value);
+                bptr += sprintf(bptr, "%d\n", items[idx].value);
+                buf_cnt++;
+                if (buf_cnt >= 300) {
+                    fprintf(tmp, "%s", buf);
+                    buf_cnt = 0;
+                    bptr = buf;
+                }
+
                 if (items[idx].fp)
                     items[idx].ret =
                         fscanf(items[idx].fp, "%d", &items[idx].value);
                 else
                     items[idx].ret = EOF;
             }
+            if (buf_cnt > 0)
+                fprintf(tmp, "%s", buf);
 
             for (int j = 0; j < sort_num; j++) {
                 fclose(items[j].fp);

@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
 
     time_end = clock();
 
-    printf("split time: %lf\n",
+    printf("merge time: %lf\n",
            ((double) time_end - time_start) / CLOCKS_PER_SEC);
 
     free(chunks);

@@ -10,9 +10,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-// #define CHUNK_SIZE (1 << 20)
-#define CHUNK_SIZE 512
-#define MERGE_NUM 5
+#define CHUNK_SIZE (1 << 19)
+// #define CHUNK_SIZE 512
+#define MERGE_NUM 2
 #define FILENAME_SIZE 100
 #define CHUNK_PATH "./chunk/"
 
@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
 
     gettimeofday(&time_start, NULL);
     while (chunk_cnt > 1) {
-        ssize_t i;
-        for (i = 0; i < min(chunk_cnt, (ssize_t) chunk_cnt - MERGE_NUM + 1);
+        size_t i;
+        for (i = 0; i < min(chunk_cnt, (ssize_t)chunk_cnt - MERGE_NUM);
              i += MERGE_NUM) {
             merge_item items[MERGE_NUM];
             int sort_num = 0;
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
                     items[j].ret = EOF;
             }
 
-            printf("sort num: %d\n", sort_num);
+            // printf("sort num: %d\n", sort_num);
 
             FILE *tmp = fopen("tmp", "w");
 
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
                     items[idx].ret = EOF;
             }
 
-            printf("remove: \n");
+            // printf("remove: \n");
             for (int j = 0; j < sort_num; j++) {
                 fclose(items[j].fp);
 
@@ -188,9 +188,9 @@ int main(int argc, char *argv[])
                 snprintf(chunk_file, FILENAME_SIZE, CHUNK_PATH "data%lu",
                          chunks[i + j]);
                 remove(chunk_file);
-                printf("%s ", chunk_file);
+                // printf("%s ", chunk_file);
             }
-            printf("\n");
+            // printf("\n");
             fclose(tmp);
 
             /* rename the merged file */
@@ -199,14 +199,16 @@ int main(int argc, char *argv[])
             rename("tmp", chunk_file);
 
             chunks[pending_idx++] = chunks[i];
-            printf("index: %d, chunk_cnt: %d\n", i, chunk_cnt);
+            // printf("index: %d, chunk_cnt: %d\n", i, chunk_cnt);
         }
 
         /* save the redundant file */
         while (i < chunk_cnt)
             chunks[pending_idx++] = chunks[i++];
 
-        printf("pending: %d\n", pending_idx);
+	/* merge files  */
+
+        // printf("pending: %d, index: %d, min: %d\n", pending_idx, i, chunk_cnt);
         chunk_cnt = pending_idx;
         pending_idx = 0;
     }

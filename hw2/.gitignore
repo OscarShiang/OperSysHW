@@ -1,0 +1,10 @@
+# EFI files
+spawner
+csv2json
+
+# Compiled files
+*.o
+
+# tmp directory
+tmp/
+input.csv

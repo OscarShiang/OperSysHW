@@ -17,7 +17,7 @@ typedef struct __process_attr {
     /* Thread attributes */
     pthread_t id;
     pthread_mutex_t mutex;
-    pthread_cond_t con;
+    pthread_cond_t cond;
 
     /* Buffers */
     process_buf *buf;
@@ -34,7 +34,7 @@ typedef struct __line_out {
 
 typedef struct __out_attr {
     pthread_mutex_t mutex;
-    pthread_cond_t con;
+    pthread_cond_t cond;
     struct __line_out *buf;
     int num;
 } out_attr;

@@ -23,7 +23,7 @@ void *process_worker(void *arg)
 
     while (1) {
         pthread_mutex_lock(&attr->mutex);
-        pthread_cond_wait(&attr->con, &attr->mutex);
+        pthread_cond_wait(&attr->cond, &attr->mutex);
         pthread_mutex_unlock(&attr->mutex);
         if (attr->finished)
             break;
@@ -59,7 +59,7 @@ void *output_worker(void *arg)
     pthread_mutex_unlock(&start);
 
     while (1) {
-        pthread_cond_wait(&attr->con, &attr->mutex);
+        pthread_cond_wait(&attr->cond, &attr->mutex);
 
         line_out *lines = attr->buf;
 

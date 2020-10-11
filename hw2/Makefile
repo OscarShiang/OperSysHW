@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -std=c11 -pthread -g
 
-C2J_OBJS = csv2json.o
+C2J_OBJS = csv2json.o include/utils.o
 SPAWN_OBJS = spawner.o include/random.o
 
 all: csv2json spawner

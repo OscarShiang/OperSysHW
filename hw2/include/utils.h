@@ -36,7 +36,6 @@ typedef struct __process_attr {
 typedef struct __line_out {
     char data[LINE_BUF];
     int len;
-    bool eof;
 } line_out;
 
 typedef struct __out_attr {

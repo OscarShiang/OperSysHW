@@ -106,15 +106,9 @@ int main(int argc, char *argv[])
 
             ret = fscanf(in, "%s", buf_lines[index].data);
             thd_attr[index].out = &buf_out[i];
-            buf_out[i].eof = (ret == EOF);
-
-            printf("[%03d] passing the data to worker thread...\n", ++data_cnt);
-            printf("[main] [%p] data %s\n\n", buf_lines[index].data,
-                   buf_lines[index].data);
 
             if (ret == EOF) {
                 ipt_eof = true;
-                i++;
                 break;
             } else {
                 /* Inform the thread to do the job */
@@ -124,17 +118,22 @@ int main(int argc, char *argv[])
                 printf("[main] loop\n");
                 thd_attr[index].state = WORK;
             }
+
+            printf("[%03d] passing the data to worker thread...\n", ++data_cnt);
+            printf("[main] [%p] data %s\n\n", buf_lines[index].data,
+                   buf_lines[index].data);
         }
 
 
-        printf("break\n");
+        printf("break [%d]\n", i);
 
-        for (int i = 0; i < WORKER_NUM; i++)
-            sem_wait(working_thd[i]);
+        for (int j = 0; j < i; j++)
+            sem_wait(working_thd[j]);
+        printf("pass\n");
 
         sem_wait(&idle_out);
 
-        for (int j = 0; j < WORKER_NUM; j++)
+        for (int j = 0; j < i; j++)
             buf_out[j].len = thd_attr[j].write_len;
 
         output_attr.num = i;
@@ -149,15 +148,6 @@ int main(int argc, char *argv[])
 
     printf("[main] scanning completed\n");
 
-    /* Change the state to exit */
-    output_attr.state = EXIT;
-
-    printf("[main] scanning completed\n");
-#if 0
-    for (int i = 0; i < WORKER_NUM; i++)
-        pthread_cond_signal(&thd_attr[i].cond);
-    pthread_cond_signal(&output_attr.cond);
-#endif
 
     for (int i = 0; i < WORKER_NUM; i++)
         sem_post(&thd_attr[i].sem);
@@ -167,20 +157,10 @@ int main(int argc, char *argv[])
         pthread_join(process_thd[i], NULL);
     pthread_join(output_thd, NULL);
 
-    printf("[main] output\n");
+
 
     printf("[main] converting completed\n");
 
-
     fclose(in);
-
-    /* Release the variables */
-#if 0
-    free(buf_out);
-    free(buf_lines);
-    free(thd_attr);
-    free(process_thd);
-#endif
-
     return 0;
 }

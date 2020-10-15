@@ -99,6 +99,7 @@ void *output_worker(void *arg)
     out_attr *attr = arg;
 
     int fd = open(OUT, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    bool begin = true;
 
     write(fd, "[\n", 2);
 
@@ -113,6 +114,7 @@ void *output_worker(void *arg)
         pthread_cond_wait(&attr->cond, &attr->mutex);
         pthread_mutex_unlock(&attr->mutex);
 #endif
+        printf("[OUT] waiting\n");
         sem_wait(&attr->sem);
 
         if (ipt_eof)
@@ -124,18 +126,16 @@ void *output_worker(void *arg)
         printf("[OUT] data size: %d\n", attr->num);
 
         for (int i = 0; i < attr->num; i++) {
+            if (!begin)
+                write(fd, postfix, 2);
+            begin = false;
             printf("[OUT] string size: %d\n", lines[i].len);
             write(fd, lines[i].data, lines[i].len);
-
-            int flag = (attr->buf->eof);
-            printf("[OUT] next line: %d\n", flag);
-
-            write(fd, &postfix[flag], 2 - flag);
         }
-
+        printf("[OUT] finish writing\n");
     }
 
-    write(fd, "]\n", 2);
+    write(fd, "\n]\n", 2);
 
     printf("[OUT] completed\n");
     close(fd);

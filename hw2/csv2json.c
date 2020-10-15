@@ -35,9 +35,10 @@ process_attr thd_attr[WORKER_NUM];
 /* find the index of idle thread */
 static int thd_sched(process_attr thds[])
 {
-    int index = -1;
+    int index = -1, tmp;
     for (int i = 0; i < WORKER_NUM; i++) {
-        if (thds[i].state == IDLE) {
+        sem_getvalue(&thd_attr[i].sem, &tmp);
+        if (!tmp) {
             index = i;
             break;
         }
@@ -61,11 +62,6 @@ int main(int argc, char *argv[])
 
     /* Initialize the threads */
     for (int i = 0; i < WORKER_NUM; i++) {
-#if 0
-	pthread_mutex_init(&thd_attr[i].mutex, NULL);
-        pthread_cond_init(&thd_attr[i].cond, NULL);
-#endif
-
         sem_init(&thd_attr[i].sem, 0, 0);
         sem_init(&thd_attr[i].finished, 0, 0);
         thd_attr[i].state = INIT;

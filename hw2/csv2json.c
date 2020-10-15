@@ -12,9 +12,9 @@
 
 #include "include/utils.h"
 
-#define IPT "test.csv"
+#define IPT "tmp.csv"
 #define OUT "output.json"
-#define WORKER_NUM 1
+#define WORKER_NUM 2
 
 /* Variables for main thread */
 bool ipt_eof = false;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 
         for (int j = 0; j < i; j++)
             sem_wait(working_thd[j]);
-        printf("pass\n");
+        printf("pass idle out\n");
 
         sem_wait(&idle_out);
 
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 
     printf("[main] scanning completed\n");
 
-
+    output_attr.state = EXIT;
     for (int i = 0; i < WORKER_NUM; i++)
         sem_post(&thd_attr[i].sem);
     sem_post(&output_attr.sem);

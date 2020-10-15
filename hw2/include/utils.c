@@ -98,7 +98,7 @@ void *output_worker(void *arg)
     /* Store the attributes */
     out_attr *attr = arg;
 
-    int fd = open(OUT, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd = creat(OUT, S_IRUSR | S_IWUSR);
     bool begin = true;
 
     write(fd, "[\n", 2);
@@ -117,7 +117,7 @@ void *output_worker(void *arg)
         printf("[OUT] waiting\n");
         sem_wait(&attr->sem);
 
-        if (ipt_eof)
+        if (attr->state == EXIT)
             break;
 
         printf("[OUT] writing data\n");
@@ -134,6 +134,7 @@ void *output_worker(void *arg)
         }
         printf("[OUT] finish writing\n");
     }
+    sem_post(&idle_out);
 
     write(fd, "\n]\n", 2);
 

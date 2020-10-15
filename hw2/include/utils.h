@@ -2,13 +2,16 @@
 #define __UTILS_H__
 
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdbool.h>
 
 #define LINE_BUF 500
 
+enum { INIT, IDLE, WORK, EXIT };
+
 /* Entity of processing lines */
 typedef struct __process_buf {
-    char data[500];
+    char data[LINE_BUF];
     bool finished;
 } process_buf;
 
@@ -23,20 +26,26 @@ typedef struct __process_attr {
     process_buf *buf;
     struct __line_out *out;
 
-    bool finished;
+    int state;
+    int write_len;
+    sem_t sem;
+    sem_t finished;
 } process_attr;
 
 /* Output buffer entity */
 typedef struct __line_out {
-    char data[500];
+    char data[LINE_BUF];
     int len;
+    bool eof;
 } line_out;
 
 typedef struct __out_attr {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     struct __line_out *buf;
+    int state;
     int num;
+    sem_t sem;
 } out_attr;
 
 /* Subroutines for threads */

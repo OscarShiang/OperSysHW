@@ -10,34 +10,26 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "include/utils.h"
-
-#define IPT "tmp.csv"
+#define IPT "test.csv"
 #define OUT "output.json"
-#define WORKER_NUM 2
-
-/* Variables for main thread */
-bool ipt_eof = false;
-pthread_mutex_t start = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t main_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t finish_sig = PTHREAD_COND_INITIALIZER;
+#define WORKER_NUM 8
 
 sem_t idle_thd;
-sem_t idle_out;
+sem_t task_completed;
 
-/* Worker thread attributes */
-process_buf buf_lines[WORKER_NUM];
-line_out buf_out[WORKER_NUM];
-
-pthread_t process_thd[WORKER_NUM];
-process_attr thd_attr[WORKER_NUM];
+typedef struct {
+    sem_t task;
+    bool exit;
+    char input[500];
+    char out[500];
+} convert_args;
 
 /* find the index of idle thread */
-static int thd_sched(process_attr thds[])
+static int thd_sched(convert_args thds[])
 {
     int index = -1, tmp;
     for (int i = 0; i < WORKER_NUM; i++) {
-        sem_getvalue(&thd_attr[i].sem, &tmp);
+        sem_getvalue(&thds[i].task, &tmp);
         if (!tmp) {
             index = i;
             break;
@@ -46,117 +38,134 @@ static int thd_sched(process_attr thds[])
     return index;
 }
 
+void *convert_worker(void *arg)
+{
+    convert_args *args = (convert_args *) arg;
+
+    while (1) {
+        /* Wait for the task */
+        printf("[worker] change to idle state\n");
+        sem_post(&idle_thd);
+        sem_wait(&args->task);
+
+        printf("[worker] start to work\n");
+
+        if (args->exit) {
+            printf("[worker] exit\n");
+            return NULL;
+        }
+
+        int len = 0, data_cnt = 1;
+        args->out[0] = '\0';
+        strcat(args->out, "\t{\n");
+
+
+        len += 3;
+
+        char *tok, *last = NULL;
+
+        tok = strtok_r(args->input, "|", &last);
+        while (tok) {
+            printf("[worker] tok: %s\n", tok);
+            len += snprintf(args->out + len, 500 - len, "\t\t\"col%d\":%s",
+                            data_cnt, tok);
+
+            int flag = (data_cnt++ == 20);
+            strncat(args->out, &",\n"[flag], 500 - len);
+            len += 2 - flag;
+
+            tok = strtok_r(NULL, "|", &last);
+        }
+        strncat(args->out, "\t}", 500 - len);
+        len += 2;
+        args->out[len] = '\0';
+        printf("[worker] completed: %s\n", args->out);
+
+        printf("[worker] task completed\n");
+        sem_post(&task_completed);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     /* Open the files */
     FILE *in = fopen(IPT, "r");
+    FILE *out = fopen(OUT, "w");
 
     int ret = 0;
     bool begin = true;
 
     sem_init(&idle_thd, 0, 0);
-    sem_init(&idle_out, 0, 0);
+    sem_init(&task_completed, 0, 0);
 
-    pthread_mutex_init(&start, NULL);
-    pthread_mutex_lock(&start);
+    pthread_t workers[WORKER_NUM];
+    convert_args worker_args[WORKER_NUM];
 
-    /* Initialize the threads */
     for (int i = 0; i < WORKER_NUM; i++) {
-        sem_init(&thd_attr[i].sem, 0, 0);
-        sem_init(&thd_attr[i].finished, 0, 0);
-        thd_attr[i].state = INIT;
-        thd_attr[i].buf = &buf_lines[i];
-
-        pthread_create(&process_thd[i], 0, process_worker, &thd_attr[i]);
+        sem_init(&worker_args[i].task, 0, 0);
+        worker_args[i].exit = false;
+        pthread_create(&workers[i], 0, convert_worker, &worker_args[i]);
     }
 
-    /* Creating output thread */
-    pthread_t output_thd;
-    out_attr output_attr = {.buf = buf_out,
-                            .num = 0,
-                            .mutex = PTHREAD_MUTEX_INITIALIZER,
-                            .cond = PTHREAD_COND_INITIALIZER,
-                            .state = IDLE};
-    sem_init(&output_attr.sem, 0, 0);
-    pthread_create(&output_thd, 0, output_worker, &output_attr);
+    char *out_buf[WORKER_NUM];
 
-    int data_cnt = 0;
-    pthread_mutex_unlock(&start);
-
-    sem_t *working_thd[WORKER_NUM];
-
+    fprintf(out, "[");
     while (1) {
-        printf("starting to process the file...\n");
-
-        /* Read lines from file */
         int i;
         for (i = 0; i < WORKER_NUM; i++) {
             sem_wait(&idle_thd);
-
+            printf("worker idle\n");
+            /* Pass the task to idle worker */
             int index;
             do {
-                index = thd_sched(thd_attr);
+                index = thd_sched(worker_args);
             } while (index == -1);
 
-            printf("[schd] %d\n", index);
-
-            ret = fscanf(in, "%s", buf_lines[index].data);
-            thd_attr[index].out = &buf_out[i];
+            ret = fscanf(in, "%s", worker_args[index].input);
+            printf("[main] pass: %s\n", worker_args[index].input);
+            out_buf[i] = worker_args[index].out;
 
             if (ret == EOF) {
-                ipt_eof = true;
                 break;
             } else {
-                /* Inform the thread to do the job */
-                sem_post(&thd_attr[index].sem);
-                working_thd[i] = &thd_attr[index].finished;
-                // pthread_cond_signal(&thd_attr[index].cond);
-                printf("[main] loop\n");
-                thd_attr[index].state = WORK;
+                sem_post(&worker_args[index].task);
             }
-
-            printf("[%03d] passing the data to worker thread...\n", ++data_cnt);
-            printf("[main] [%p] data %s\n\n", buf_lines[index].data,
-                   buf_lines[index].data);
         }
 
+        printf("[main] i = %d\n", i);
 
-        printf("break [%d]\n", i);
-
+        /* wait for the worker */
         for (int j = 0; j < i; j++)
-            sem_wait(working_thd[j]);
-        printf("pass idle out\n");
+            sem_wait(&task_completed);
 
-        sem_wait(&idle_out);
+        printf("print out\n");
 
-        for (int j = 0; j < i; j++)
-            buf_out[j].len = thd_attr[j].write_len;
+        /* Output */
+        for (int j = 0; j < i; j++) {
 
-        output_attr.num = i;
+            printf("[main] print out: %s\n", out_buf[j]);
+            fprintf(out, "%s", &",\n"[begin]);
+            fprintf(out, "%s", out_buf[j]);
+            begin = false;
+        }
 
-        /* Inform the output worker to print out the data */
-        // pthread_cond_signal(&output_attr.cond);
-        sem_post(&output_attr.sem);
-
-        if (ipt_eof)
+        if (ret == EOF)
             break;
     }
+    fprintf(out, "\n]");
 
-    printf("[main] scanning completed\n");
+    printf("[main] detroy the threads\n");
 
-    output_attr.state = EXIT;
-    for (int i = 0; i < WORKER_NUM; i++)
-        sem_post(&thd_attr[i].sem);
-    sem_post(&output_attr.sem);
+    for (int i = 0; i < WORKER_NUM; i++) {
+        worker_args[i].exit = true;
+        sem_post(&worker_args[i].task);
+        pthread_join(workers[i], NULL);
+    }
 
-    for (int i = 0; i < WORKER_NUM; i++)
-        pthread_join(process_thd[i], NULL);
-    pthread_join(output_thd, NULL);
-
-
-
-    printf("[main] converting completed\n");
+    printf("[MAIN] Completed\n");
 
     fclose(in);
+    fclose(out);
+
     return 0;
 }

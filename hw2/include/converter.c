@@ -28,15 +28,15 @@ void *convert_worker(void *arg)
 
     while (1) {
         /* Wait for the task */
-        printf("[worker] change to idle state\n");
+        // printf("[worker] change to idle state\n");
 
         sem_post(&idle_thd);
         sem_wait(&args->task);
 
-        printf("[worker] start to work\n");
+        // printf("[worker] start to work\n");
 
         if (args->exit) {
-            printf("[worker] exit\n");
+            // printf("[worker] exit\n");
             return NULL;
         }
 
@@ -52,7 +52,7 @@ void *convert_worker(void *arg)
 
         tok = strtok_r(args->input, "|", &last);
         while (tok) {
-            printf("[worker] tok: %s\n", tok);
+            // printf("[worker] tok: %s\n", tok);
             len += sprintf(args->out + len, "\t\t\"col_%d\":%s", data_cnt, tok);
 
             int flag = (data_cnt++ == 20);
@@ -63,9 +63,9 @@ void *convert_worker(void *arg)
         }
         strcat(args->out, "\t}");
 
-        printf("[worker] completed: %s\n", args->out);
+        // printf("[worker] completed: %s\n", args->out);
 
-        printf("[worker] task completed\n");
+        // printf("[worker] task completed\n");
         sem_post(&args->completed);
     }
 }

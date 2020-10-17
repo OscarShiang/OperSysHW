@@ -43,17 +43,17 @@ int main(int argc, char *argv[])
         int i;
         for (i = 0; i < WORKER_NUM; i++) {
             sem_wait(&idle_thd);
-            printf("worker idle\n");
+            // printf("worker idle\n");
             /* Pass the task to idle worker */
             int index;
             do {
                 index = thd_sched(worker_args);
             } while (index == -1);
 
-            printf("[sced] %d\n", index);
+            // printf("[sced] %d\n", index);
 
             ret = fscanf(in, "%s", worker_args[index].input);
-            printf("[main] pass: %s\n", worker_args[index].input);
+            // printf("[main] pass: %s\n", worker_args[index].input);
 
             schedule[i] = index;
 
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        printf("[main] i = %d\n", i);
+        // printf("[main] i = %d\n", i);
 
         /* wait for the worker */
         for (int j = 0; j < i; j++) {
@@ -73,12 +73,12 @@ int main(int argc, char *argv[])
             worker_args[schedule[j]].work = false;
         }
 
-        printf("print out\n");
+        // printf("print out\n");
 
         /* Output */
         for (int j = 0; j < i; j++) {
-            printf("[main] print out [%d]: \n%s\n", schedule[j],
-                   worker_args[schedule[j]].out);
+            // printf("[main] print out [%d]: \n%s\n", schedule[j],
+            //         worker_args[schedule[j]].out);
             fprintf(out, "%s", &",\n"[begin]);
             fprintf(out, "%s", worker_args[schedule[j]].out);
             begin = false;
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     }
     fprintf(out, "\n]");
 
-    printf("[main] detroy the threads\n");
+    // printf("[main] detroy the threads\n");
 
     for (int i = 0; i < WORKER_NUM; i++) {
         worker_args[i].exit = true;
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
         pthread_join(workers[i], NULL);
     }
 
-    printf("[MAIN] Completed\n");
+    printf("Convertion completed\n");
 
     fclose(in);
     fclose(out);

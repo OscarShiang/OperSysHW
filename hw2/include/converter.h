@@ -5,8 +5,6 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
-#define WORKER_NUM 20
-
 /* Worker structure */
 typedef struct {
     sem_t task;

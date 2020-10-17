@@ -3,6 +3,7 @@
 
 #include "converter.h"
 
+extern int worker_num;
 extern sem_t idle_thd;
 
 /* find the index of idle thread */
@@ -10,7 +11,7 @@ int thd_sched(convert_args thds[])
 {
     int index = -1, task, completed;
     bool work;
-    for (int i = 0; i < WORKER_NUM; i++) {
+    for (int i = 0; i < worker_num; i++) {
         sem_getvalue(&thds[i].task, &task);
         sem_getvalue(&thds[i].completed, &completed);
         work = *(&thds[i].work);

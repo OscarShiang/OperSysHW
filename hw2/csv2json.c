@@ -14,8 +14,14 @@
 
 sem_t idle_thd;
 
+int worker_num = 1;
+
 int main(int argc, char *argv[])
 {
+    /* Parse the worker number */
+    if (argc > 1)
+        worker_num = atoi(argv[1]);
+
     /* Open the files */
     FILE *in = fopen(IPT, "r");
     FILE *out = fopen(OUT, "w");
@@ -25,10 +31,10 @@ int main(int argc, char *argv[])
 
     sem_init(&idle_thd, 0, 0);
 
-    pthread_t workers[WORKER_NUM];
-    convert_args worker_args[WORKER_NUM];
+    pthread_t *workers = malloc(sizeof(pthread_t) * worker_num);
+    convert_args *worker_args = malloc(sizeof(convert_args) * worker_num);
 
-    for (int i = 0; i < WORKER_NUM; i++) {
+    for (int i = 0; i < worker_num; i++) {
         sem_init(&worker_args[i].task, 0, 0);
         sem_init(&worker_args[i].completed, 0, 0);
         worker_args[i].work = false;
@@ -36,12 +42,12 @@ int main(int argc, char *argv[])
         pthread_create(&workers[i], 0, convert_worker, &worker_args[i]);
     }
 
-    int schedule[WORKER_NUM];
+    int *schedule = malloc(sizeof(int) * worker_num);
 
     fprintf(out, "[");
     while (1) {
         int i;
-        for (i = 0; i < WORKER_NUM; i++) {
+        for (i = 0; i < worker_num; i++) {
             sem_wait(&idle_thd);
             // printf("worker idle\n");
             /* Pass the task to idle worker */
@@ -91,13 +97,17 @@ int main(int argc, char *argv[])
 
     // printf("[main] detroy the threads\n");
 
-    for (int i = 0; i < WORKER_NUM; i++) {
+    for (int i = 0; i < worker_num; i++) {
         worker_args[i].exit = true;
         sem_post(&worker_args[i].task);
         pthread_join(workers[i], NULL);
     }
 
     printf("Convertion completed\n");
+
+    free(workers);
+    free(worker_args);
+    free(schedule);
 
     fclose(in);
     fclose(out);

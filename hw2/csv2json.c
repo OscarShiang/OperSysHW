@@ -12,7 +12,7 @@
 
 #define IPT "tmp.csv"
 #define OUT "output.json"
-#define WORKER_NUM 3
+#define WORKER_NUM 10
 
 sem_t idle_thd;
 sem_t task_completed;
@@ -20,6 +20,7 @@ sem_t task_completed;
 typedef struct {
     sem_t task;
     sem_t completed;
+    bool work;
     bool exit;
     char input[500];
     char out[500];
@@ -29,10 +30,12 @@ typedef struct {
 static int thd_sched(convert_args thds[])
 {
     int index = -1, task, completed;
+    bool work;
     for (int i = 0; i < WORKER_NUM; i++) {
         sem_getvalue(&thds[i].task, &task);
         sem_getvalue(&thds[i].completed, &completed);
-        if (!task && !completed) {
+        work = *(&thds[i].work);
+        if (!task && !completed && !work) {
             index = i;
             break;
         }
@@ -47,6 +50,8 @@ void *convert_worker(void *arg)
     while (1) {
         /* Wait for the task */
         printf("[worker] change to idle state\n");
+        args->work = false;
+
         sem_post(&idle_thd);
         sem_wait(&args->task);
 
@@ -105,6 +110,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < WORKER_NUM; i++) {
         sem_init(&worker_args[i].task, 0, 0);
         sem_init(&worker_args[i].completed, 0, 0);
+        worker_args[i].work = false;
         worker_args[i].exit = false;
         pthread_create(&workers[i], 0, convert_worker, &worker_args[i]);
     }
@@ -135,6 +141,7 @@ int main(int argc, char *argv[])
             if (ret == EOF) {
                 break;
             } else {
+                worker_args[i].work = true;
                 sem_post(&worker_args[index].task);
             }
         }

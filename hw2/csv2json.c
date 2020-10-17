@@ -50,7 +50,6 @@ void *convert_worker(void *arg)
     while (1) {
         /* Wait for the task */
         printf("[worker] change to idle state\n");
-        args->work = false;
 
         sem_post(&idle_thd);
         sem_wait(&args->task);
@@ -115,8 +114,7 @@ int main(int argc, char *argv[])
         pthread_create(&workers[i], 0, convert_worker, &worker_args[i]);
     }
 
-    char *out_buf[WORKER_NUM];
-    sem_t *completed[WORKER_NUM];
+    int schedule[WORKER_NUM];
 
     fprintf(out, "[");
     while (1) {
@@ -135,31 +133,32 @@ int main(int argc, char *argv[])
             ret = fscanf(in, "%s", worker_args[index].input);
             printf("[main] pass: %s\n", worker_args[index].input);
 
-            out_buf[i] = worker_args[index].out;
-            completed[i] = &worker_args[index].completed;
+            schedule[i] = index;
 
             if (ret == EOF) {
                 break;
             } else {
-                worker_args[i].work = true;
+                worker_args[index].work = true;
                 sem_post(&worker_args[index].task);
             }
         }
 
         printf("[main] i = %d\n", i);
 
-        // FIXME: this cannot prevent the threads asychronous problems
         /* wait for the worker */
-        for (int j = 0; j < i; j++)
-            sem_wait(completed[j]);
+        for (int j = 0; j < i; j++) {
+            sem_wait(&worker_args[schedule[j]].completed);
+            worker_args[schedule[j]].work = false;
+        }
 
         printf("print out\n");
 
         /* Output */
         for (int j = 0; j < i; j++) {
-            printf("[main] print out [%d]: \n%s\n", j, out_buf[j]);
+            printf("[main] print out [%d]: \n%s\n", schedule[j],
+                   worker_args[schedule[j]].out);
             fprintf(out, "%s", &",\n"[begin]);
-            fprintf(out, "%s", out_buf[j]);
+            fprintf(out, "%s", worker_args[schedule[j]].out);
             begin = false;
         }
 

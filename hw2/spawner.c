@@ -12,7 +12,7 @@
 
 #define MAX_SPAWN ((size_t) 1 << 30)
 #define WORKER_NUM 4
-#define WORKING_DIR "./tmp/%d"
+#define WORKING_DIR "/tmp/spawner_%d"
 
 void *spawn_worker(void *arg)
 {
@@ -21,8 +21,8 @@ void *spawn_worker(void *arg)
     int num[20];
     uint64_t content = 0;
 
-    char filename[10];
-    snprintf(filename, 10, WORKING_DIR, worker_num);
+    char filename[20];
+    snprintf(filename, 20, WORKING_DIR, worker_num);
 
     FILE *fp = fopen(filename, "w");
 
@@ -59,9 +59,9 @@ int main(void)
 
     int fd = creat(FILENAME, S_IRUSR | S_IWUSR);
 
-    char filename[10], buf[4096];
+    char filename[20], buf[4096];
     for (int i = 0; i < WORKER_NUM; i++) {
-        snprintf(filename, 10, WORKING_DIR, i);
+        snprintf(filename, 20, WORKING_DIR, i);
         int tmp = open(filename, O_RDONLY), ret;
 
         while ((ret = read(tmp, buf, 4096)))

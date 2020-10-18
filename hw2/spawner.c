@@ -42,6 +42,8 @@ void *spawn_worker(void *arg)
 
 int main(void)
 {
+    mkdir("./tmp", S_IRUSR | S_IWUSR);
+
     pthread_t thr[WORKER_NUM - 1];
     int num[WORKER_NUM];
     for (int i = 0; i < WORKER_NUM - 1; i++) {
@@ -55,7 +57,7 @@ int main(void)
     for (int i = 0; i < WORKER_NUM - 1; i++)
         pthread_join(thr[i], NULL);
 
-    int fd = open(FILENAME, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd = creat(FILENAME, S_IRUSR | S_IWUSR);
 
     char filename[10], buf[4096];
     for (int i = 0; i < WORKER_NUM; i++) {
@@ -68,9 +70,10 @@ int main(void)
         remove(filename);
     }
 
-    printf("Spawning completed\n");
-
+    rmdir("./tmp");
     close(fd);
+
+    printf("Spawning completed\n");
 
     return 0;
 }

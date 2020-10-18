@@ -103,14 +103,14 @@ int main(int argc, char *argv[])
         pthread_join(workers[i], NULL);
     }
 
-    printf("Convertion completed\n");
-
     free(workers);
     free(worker_args);
     free(schedule);
 
     fclose(in);
     fclose(out);
+
+    printf("Convertion completed\n");
 
     return 0;
 }

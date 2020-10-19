@@ -44,8 +44,18 @@ int main(int argc, char *argv[])
 
     int *schedule = malloc(sizeof(int) * worker_num);
 
+    /* Define the time measurement variables */
+    clock_t overall_start, overall_end;
+    clock_t input_start, input_end, input_sum = 0;
+    clock_t output_start, output_end, output_sum = 0;
+    clock_t process_start, process_end, process_sum = 0;
+
+    overall_start = clock();
+
     fprintf(out, "[");
     while (1) {
+        input_start = clock();
+
         int i;
         for (i = 0; i < worker_num; i++) {
             sem_wait(&idle_thd);
@@ -57,6 +67,9 @@ int main(int argc, char *argv[])
             } while (index == -1);
 
             // printf("[sced] %d\n", index);
+
+            if (!i)
+                process_start = clock();
 
             ret = fscanf(in, "%s", worker_args[index].input);
             // printf("[main] pass: %s\n", worker_args[index].input);
@@ -70,7 +83,6 @@ int main(int argc, char *argv[])
                 sem_post(&worker_args[index].task);
             }
         }
-
         // printf("[main] i = %d\n", i);
 
         /* wait for the worker */
@@ -79,9 +91,17 @@ int main(int argc, char *argv[])
             worker_args[schedule[j]].work = false;
         }
 
+        /* Analyze the time cost */
+        input_end = clock();
+        input_sum += input_end - input_start;
+
+        process_end = clock();
+        process_sum += process_end - process_start;
+
         // printf("print out\n");
 
         /* Output */
+        output_start = clock();
         for (int j = 0; j < i; j++) {
             // printf("[main] print out [%d]: \n%s\n", schedule[j],
             //         worker_args[schedule[j]].out);
@@ -89,6 +109,8 @@ int main(int argc, char *argv[])
             fprintf(out, "%s", worker_args[schedule[j]].out);
             begin = false;
         }
+        output_end = clock();
+        output_sum += output_end - output_start;
 
         if (ret == EOF)
             break;
@@ -103,6 +125,8 @@ int main(int argc, char *argv[])
         pthread_join(workers[i], NULL);
     }
 
+    overall_end = clock();
+
     free(workers);
     free(worker_args);
     free(schedule);
@@ -110,7 +134,16 @@ int main(int argc, char *argv[])
     fclose(in);
     fclose(out);
 
-    printf("Convertion completed\n");
+    /* Print out time consumption of each stage */
+    printf("[Scan] time cost:\t%lf\n", ((double) input_sum) / CLOCKS_PER_SEC);
+    printf("[Process] time cost:\t%lf\n",
+           ((double) process_sum) / CLOCKS_PER_SEC);
+    printf("[Output] time cost:\t%lf\n",
+           ((double) output_sum) / CLOCKS_PER_SEC);
+    printf("[Overall] time cost:\t%lf\n",
+           ((double) overall_end - overall_start) / CLOCKS_PER_SEC);
+
+    printf("\nConvertion completed\n");
 
     return 0;
 }

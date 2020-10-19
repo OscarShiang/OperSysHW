@@ -42,8 +42,6 @@ void *spawn_worker(void *arg)
 
 int main(void)
 {
-    mkdir("./tmp", S_IRUSR | S_IWUSR);
-
     pthread_t thr[WORKER_NUM - 1];
     int num[WORKER_NUM];
     for (int i = 0; i < WORKER_NUM - 1; i++) {
@@ -70,7 +68,6 @@ int main(void)
         remove(filename);
     }
 
-    rmdir("./tmp");
     close(fd);
 
     printf("Spawning completed\n");

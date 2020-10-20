@@ -13,6 +13,7 @@ typedef struct {
     bool exit;
     char input[500];
     char out[500];
+    int size;
 } convert_args;
 
 /* Utilities for convert worker */

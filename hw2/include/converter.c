@@ -63,6 +63,8 @@ void *convert_worker(void *arg)
             tok = strtok_r(NULL, "|", &last);
         }
         strcat(args->out, "\t}");
+        len += 2;
+        args->size = len;
 
         // printf("[worker] completed: %s\n", args->out);
 

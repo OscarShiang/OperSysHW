@@ -16,7 +16,7 @@ endif
 
 %.o: %.c
 	$(VECHO) "   CC\t$@\n"
-	$(Q)$(CC) -c $< $(CFLAGS) -o $@
+	$(Q)$(CC) -c $< $(CFLAGS) -o $@ $(TYPE)
 
 csv2json: $(C2J_OBJS)
 	$(VECHO) "   LD\t$@\n"

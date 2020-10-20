@@ -5,7 +5,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "include/converter.h"
 
@@ -24,7 +26,11 @@ int main(int argc, char *argv[])
 
     /* Open the files */
     FILE *in = fopen(IPT, "r");
+#ifndef SYS_WRITE
     FILE *out = fopen(OUT, "w");
+#else
+    int out = creat(OUT, S_IRUSR | S_IWUSR);
+#endif
 
     int ret = 0;
     bool begin = true;
@@ -52,7 +58,11 @@ int main(int argc, char *argv[])
 
     overall_start = clock();
 
+#ifndef SYS_WRITE
     fprintf(out, "[");
+#else
+    write(out, "[", 1);
+#endif
     while (1) {
         input_start = clock();
 
@@ -105,8 +115,14 @@ int main(int argc, char *argv[])
         for (int j = 0; j < i; j++) {
             // printf("[main] print out [%d]: \n%s\n", schedule[j],
             //         worker_args[schedule[j]].out);
+#ifndef SYS_WRITE
             fprintf(out, "%s", &",\n"[begin]);
             fprintf(out, "%s", worker_args[schedule[j]].out);
+#else
+            write(out, &",\n"[begin], 2 - begin);
+            write(out, worker_args[schedule[j]].out,
+                  worker_args[schedule[j]].size);
+#endif
             begin = false;
         }
         output_end = clock();
@@ -115,7 +131,11 @@ int main(int argc, char *argv[])
         if (ret == EOF)
             break;
     }
+#ifndef SYS_WRITE
     fprintf(out, "\n]\n");
+#else
+    write(out, "\n]\n", 3);
+#endif
 
     // printf("[main] detroy the threads\n");
 
@@ -132,7 +152,11 @@ int main(int argc, char *argv[])
     free(schedule);
 
     fclose(in);
+#ifndef SYS_WRITE
     fclose(out);
+#else
+    close(out);
+#endif
 
     /* Print out time consumption of each stage */
     printf("[Scan] time cost:\t%lf\n", ((double) input_sum) / CLOCKS_PER_SEC);

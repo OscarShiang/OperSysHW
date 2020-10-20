@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
         if (ret == EOF)
             break;
     }
-    fprintf(out, "\n]");
+    fprintf(out, "\n]\n");
 
     // printf("[main] detroy the threads\n");
 

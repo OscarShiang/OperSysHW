@@ -11,7 +11,7 @@
 
 #include "include/converter.h"
 
-#define IPT "tmp.csv"
+#define IPT "input.csv"
 #define OUT "output.json"
 
 sem_t idle_thd;

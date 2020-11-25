@@ -1,0 +1,8 @@
+# temporary storage
+store
+
+# compiler generated
+*.o
+
+# ELF files
+kv_store

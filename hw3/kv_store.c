@@ -13,11 +13,50 @@
 #define BUCKET_SIZE (1 << 28) /* 256 MiB */
 #define BUCKET_MOD ((uint64_t) 0xfffffff)
 
-#define KEY_SIZE 129 /* 128 + null terminated */
+#define KEY_SIZE 128 /* 128 + null terminated */
 
 typedef struct bucket {
     char keys[BUCKET_SIZE][KEY_SIZE];
 } bucket_t;
+
+/* put value into storage */
+void kv_put(uint64_t key, char *value)
+{
+    char bucket_name[512];
+
+    sprintf(bucket_name, "storage/%lu.bucket", key >> 28);
+    int fd = open(bucket_name, O_CREAT | O_WRONLY, S_IRWXU);
+    assert(fd != -1);
+
+    ftruncate(fd, (uint64_t) KEY_SIZE * BUCKET_SIZE);
+
+    uint64_t offset = key & BUCKET_MOD;
+    lseek(fd, KEY_SIZE * offset, SEEK_SET);
+    write(fd, value, KEY_SIZE);
+
+    close(fd);
+}
+
+/* get value from the storage */
+void kv_get(uint64_t key, char *dst)
+{
+    char bucket_name[512];
+
+    sprintf(bucket_name, "storage/%lu.bucket", key >> 28);
+    int fd = open(bucket_name, O_RDONLY);
+    if (fd == -1) {
+        // bucket not found
+        sprintf(dst, "EMPTY\n");
+    } else {
+        // bucket exists
+        uint64_t offset = key & BUCKET_MOD;
+        lseek(fd, KEY_SIZE * offset, SEEK_SET);
+        read(fd, dst, KEY_SIZE);
+        if (!dst[0])
+            sprintf(dst, "EMPTY\n");
+        close(fd);
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -27,16 +66,9 @@ int main(int argc, char *argv[])
     }
 
     char ipt_name[256] = {0};
-    strncpy(ipt_name, argv[1], sizeof(ipt_name));
     char tmp_name[256] = {0};
+    strncpy(ipt_name, argv[1], strlen(argv[1]) - 6);
 
-    // remove the extension name
-    for (int i = 0; i < strlen(ipt_name); i++) {
-        if (ipt_name[i] == '.') {
-            ipt_name[i] = '\0';
-            break;
-        }
-    }
     sprintf(tmp_name, ".%s.output", ipt_name);
 
     mkdir("storage", 511);
@@ -47,74 +79,25 @@ int main(int argc, char *argv[])
 
     char cmd[5] = {0};
     uint64_t key1, key2;
-    char value[129];
-    char bucket_name[512];
+    char value[KEY_SIZE];
 
     while (fscanf(input, "%s", cmd) != EOF) {
         if (!strcmp(cmd, "PUT")) {
             fscanf(input, "%lu %s", &key1, value);
-            // printf("[%llu] -> %s\n", key1, value);
-
-            /* do store */
-            sprintf(bucket_name, "storage/%lu.bucket", key1 >> 28);
-            int fd = open(bucket_name, O_CREAT | O_WRONLY, S_IRWXU);
-            assert(fd != -1);
-
-            ftruncate(fd, (uint64_t) 129 * BUCKET_SIZE);
-
-            uint64_t offset = key1 & BUCKET_MOD;
-            lseek(fd, 129 * offset, SEEK_SET);
-            write(fd, value, 129);
-
-            close(fd);
+            kv_put(key1, value);
         } else if (!strcmp(cmd, "GET")) {
             fscanf(input, "%lu", &key1);
-            // printf("get [%llu]\n", key1);
 
             has_out = true;
-
-            sprintf(bucket_name, "storage/%lu.bucket", key1 >> 28);
-            int fd = open(bucket_name, O_RDONLY);
-            if (fd == -1) {
-                // bucket not found
-                fprintf(out, "EMPTY\n");
-            } else {
-                // bucket exists
-                uint64_t offset = key1 & BUCKET_MOD;
-                lseek(fd, 129 * offset, SEEK_SET);
-                read(fd, value, 129);
-                if (!value[0])
-                    fprintf(out, "EMPTY\n");
-                else
-                    fprintf(out, "%s\n", value);
-                close(fd);
-            }
+            kv_get(key1, value);
+            fprintf(out, "%s", value);
         } else if (!strcmp(cmd, "SCAN")) {
             fscanf(input, "%lu %lu", &key1, &key2);
 
             has_out = true;
-
-            // basically use assert to check if the scan across different pages
-            assert(key1 >> 28 == key2 >> 28 || "Cross the page");
-
-            uint64_t count = (key2 & BUCKET_MOD) - (key1 & BUCKET_MOD) + 1;
-
-            sprintf(bucket_name, "storage/%lu.bucket", key1 >> 28);
-            int fd = open(bucket_name, O_RDONLY);
-            if (fd == -1) {
-                for (uint64_t i = 0; i < count; i++)
-                    fprintf(out, "EMPTY\n");
-            } else {
-                lseek(fd, (uint64_t) 129 * (key1 & BUCKET_MOD), SEEK_SET);
-                for (uint64_t i = 0; i < count; i++) {
-                    value[0] = '\0';
-                    read(fd, value, 129);
-                    if (!value[0])
-                        fprintf(out, "EMPTY\n");
-                    else
-                        fprintf(out, "%s\n", value);
-                }
-                close(fd);
+            for (uint64_t i = key1; i <= key2; i++) {
+                kv_get(i, value);
+                fprintf(out, "%s", value);
             }
         } else
             assert(0 && "Unknown command");

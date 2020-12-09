@@ -67,9 +67,16 @@ int main(int argc, char *argv[])
 
     char ipt_name[256] = {0};
     char tmp_name[256] = {0};
-    strncpy(ipt_name, argv[1], strlen(argv[1]) - 6);
 
-    sprintf(tmp_name, ".%s.output", ipt_name);
+    // find the filename
+    int len = strlen(argv[1]);
+    int iter = len;
+    while (--iter && argv[1][iter] != '/')
+	;/* iterates */
+    bool found = (argv[1][iter] == '/');
+
+    strncpy(ipt_name, &argv[1][iter + found], len - iter - found - 6);
+    sprintf(tmp_name, "%s.output", ipt_name);
 
     mkdir("storage", 511);
 

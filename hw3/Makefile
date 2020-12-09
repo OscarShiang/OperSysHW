@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -std=c11 -g -pthread
 
 BIN = kv_store
-OBJS = kv_store.o
+OBJS = kv_store.o include/utils.o
 
 all: $(BIN)
 
@@ -29,7 +29,7 @@ debug: $(BIN)
 	gdb --args ./kv_store test.input
 
 format: 
-	@clang-format -i *.[ch]
+	@clang-format -i */*.[ch]
 
 clean: 
 	$(RM) $(BIN) $(OBJS)

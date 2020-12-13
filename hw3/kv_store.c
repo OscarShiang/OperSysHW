@@ -69,6 +69,8 @@ int main(int argc, char *argv[])
             assert(0 && "Unknown command");
     }
 
+    // reserve the data we stored before
+    bucket_dump(store);
     free(store);
 
     clock_gettime(CLOCK_MONOTONIC, &end);

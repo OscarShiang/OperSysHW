@@ -6,12 +6,15 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "include/utils.h"
 
 int main(int argc, char *argv[])
 {
+    struct timeval start, end;
+
     if (argc < 2) {
         printf("Usage: ./kv_store [INPUT_FILE]\n");
         exit(-1);
@@ -40,6 +43,7 @@ int main(int argc, char *argv[])
     uint64_t key1, key2;
     char value[KEY_SIZE];
 
+    gettimeofday(&start, NULL);
     while (fscanf(input, "%s", cmd) != EOF) {
         if (!strcmp(cmd, "PUT")) {
             fscanf(input, "%lu %s", &key1, value);
@@ -61,6 +65,7 @@ int main(int argc, char *argv[])
         } else
             assert(0 && "Unknown command");
     }
+    gettimeofday(&end, NULL);
 
     // close the files
     fclose(input);
@@ -70,6 +75,8 @@ int main(int argc, char *argv[])
         rename(tmp_name, tmp_name + 1);
     else
         remove(tmp_name);
+
+    printf("execution time: %lf\n", ((double)end.tv_sec - start.tv_sec) + ((double)end.tv_usec - start.tv_usec) / 1000000);
 
     return 0;
 }

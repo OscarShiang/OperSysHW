@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -std=c11 -g -pthread
 
 BIN = kv_store
-OBJS = kv_store.o include/utils.o
+OBJS = kv_store.o include/utils.o include/bucket.o
 
 all: $(BIN)
 

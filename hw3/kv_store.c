@@ -6,9 +6,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
-#include "include/utils.h"
+#include "include/bucket.h"
 
 int main(int argc, char *argv[])
 {
@@ -38,29 +39,39 @@ int main(int argc, char *argv[])
 
     char cmd[5] = {0};
     uint64_t key1, key2;
-    char value[KEY_SIZE];
+    char value[VALUE_SIZE];
 
+    struct timespec start, end;
+
+    bucket_t *store = malloc(sizeof(bucket_t));
+    bucket_init(store);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
     while (fscanf(input, "%s", cmd) != EOF) {
         if (!strcmp(cmd, "PUT")) {
             fscanf(input, "%lu %s", &key1, value);
-            kv_put(key1, value);
+            bucket_write(store, &key1, value);
         } else if (!strcmp(cmd, "GET")) {
             fscanf(input, "%lu", &key1);
 
             has_out = true;
-            kv_get(key1, value);
+            bucket_read(store, &key1, value);
             fprintf(out, "%s\n", value);
         } else if (!strcmp(cmd, "SCAN")) {
             fscanf(input, "%lu %lu", &key1, &key2);
 
             has_out = true;
             for (uint64_t i = key1; i <= key2; i++) {
-                kv_get(i, value);
+                bucket_read(store, &i, value);
                 fprintf(out, "%s\n", value);
             }
         } else
             assert(0 && "Unknown command");
     }
+
+    free(store);
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
 
     // close the files
     fclose(input);
@@ -70,6 +81,10 @@ int main(int argc, char *argv[])
         rename(tmp_name, tmp_name + 1);
     else
         remove(tmp_name);
+
+    printf("execution time: %lf\n",
+           ((double) end.tv_sec - start.tv_sec) +
+               ((double) end.tv_nsec - start.tv_nsec) / 1000000000);
 
     return 0;
 }

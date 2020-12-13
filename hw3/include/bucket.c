@@ -65,23 +65,22 @@ int bucket_read(bucket_t *bucket, const uint8_t *key, char *buf)
     int64_t key_value = *(int64_t *) key;
     int i = hash(key, ELEMENT_COUNT);
 
-    if (!bucket->num)
-        strncpy(buf, bucket->data[i].value, VALUE_SIZE);
-    else if (bucket->data[i].key == -1 || bucket->data[i].key != key_value) {
+    if (bucket->data[i].key == -1 || bucket->data[i].key != key_value) {
         int fd;
         bool found_data = false;
         char bucket_name[512];
+	element_t tmp_value;
         bucket_t *tmp_bucket = malloc(sizeof(bucket_t));
         for (ssize_t j = bucket->num - 1; j >= 0; j--) {
             sprintf(bucket_name, "storage/%lu.bucket", j);
             fd = open(bucket_name, O_RDONLY);
             assert("File is not existed" && fd != -1);
-            read(fd, tmp_bucket, sizeof(bucket_t));
+	    lseek(fd, VALUE_SIZE * i, SEEK_SET);
+            read(fd, &tmp_value, sizeof(element_t));
             close(fd);
-            if (tmp_bucket->data[i].key == -1 ||
-                tmp_bucket->data[i].key != key_value) {
+            if (tmp_value.key != key_value) {
                 found_data = true;
-                strncpy(buf, tmp_bucket->data[i].value, VALUE_SIZE);
+                strncpy(buf, tmp_value.value, VALUE_SIZE);
                 break;
             }
         }
